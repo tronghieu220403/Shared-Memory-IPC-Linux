@@ -6,12 +6,12 @@
 namespace heap
 {
     struct HeapHeader{
-        DWORD fwd;
-        DWORD back;
+        DWORD prev;
+        DWORD next;
         DWORD send_id;
         DWORD recv_id;
         DWORD time_stamp;
-        
+        DWORD size;
     } HeapHeader;   
 
 }
