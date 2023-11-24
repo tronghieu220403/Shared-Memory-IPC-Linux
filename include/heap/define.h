@@ -12,7 +12,7 @@ namespace heap
         DWORD recv_id;
         DWORD time_stamp;
         DWORD size;
-    } HeapHeader;   
+    };   
 
 }
 

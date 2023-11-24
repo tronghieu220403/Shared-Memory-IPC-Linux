@@ -8,10 +8,14 @@ namespace heap
     class HeapManager
     {
     private:
-        UCHAR ptr_;
-
+        void* ptr_;
     public:
         
+        HeapManager(void* ptr);
+
+        void* GetStartPointer() const;
+        void SetStartPointer(void* ptr);
+
         void* Alloc(DWORD size);
         void Free(void* ptr);
     
