@@ -1,3 +1,5 @@
+#include "framework.h"
+
 namespace ulti
 {
     void ZeroMemory(void* data, DWORD size)

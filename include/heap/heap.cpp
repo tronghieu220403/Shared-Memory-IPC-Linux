@@ -18,7 +18,7 @@ namespace heap
 
         first_ptr->flag = 0;
         first_ptr->prev_distance = 0;
-        first_ptr->next_distance = (size_t)last_ptr - (size_t)first_ptr;
+        first_ptr->next_distance = static_cast<DWORD>((size_t)last_ptr - (size_t)first_ptr);
 
         last_ptr->flag = IN_USE;
         last_ptr->prev_distance = first_ptr->next_distance;
@@ -35,7 +35,7 @@ namespace heap
 
         heap_mutex_.Lock();
         heap::HeapHeader* this_ptr = (heap::HeapHeader *)ptr_;
-        DWORD true_size = (size+sizeof(heap::HeapHeader))%0x10 == 0 ? (size+sizeof(heap::HeapHeader))*0x10 : ((size+sizeof(heap::HeapHeader))/0x10+1)*0x10;
+        DWORD true_size = (size+sizeof(heap::HeapHeader))%0x10 == 0 ? (size+sizeof(heap::HeapHeader)) : ((size+sizeof(heap::HeapHeader))/0x10+1)*0x10;
 
         while(true)
         {
@@ -47,26 +47,33 @@ namespace heap
             if ( (this_ptr->flag & IN_USE) == 0 &&
                 this_ptr->next_distance >= true_size)
             {
+                if (this_ptr->next_distance >= true_size + sizeof(heap::HeapHeader))
+                {
+                    // split the heap into 2 part
 
-                // split the heap into 2 part
+                    heap::HeapHeader* second_half_ptr = (heap::HeapHeader*)((size_t)this_ptr + true_size);
+                    ulti::ZeroMemory(second_half_ptr, sizeof(heap::HeapHeader));
+                    second_half_ptr->prev_distance = true_size;
+                    second_half_ptr->next_distance = this_ptr->next_distance - true_size;
 
-                heap::HeapHeader* second_half_ptr = (heap::HeapHeader*)((size_t)this_ptr + true_size);
-                ulti::ZeroMemory(second_half_ptr, sizeof(heap::HeapHeader));
-                second_half_ptr->prev_distance = true_size;
-                second_half_ptr->next_distance = this_ptr->next_distance-true_size;
+                    heap::HeapHeader* first_half_ptr = this_ptr;
+                    first_half_ptr->reserve[0] = 0;
+                    first_half_ptr->flag = IN_USE;
+                    first_half_ptr->next_distance = true_size;
+                    first_half_ptr->prev_distance = this_ptr->prev_distance;
 
-                heap::HeapHeader* first_half_ptr = this_ptr;
-                ulti::ZeroMemory(first_half_ptr, sizeof(heap::HeapHeader));
-                first_half_ptr->flag = IN_USE;
-                first_half_ptr->next_distance = true_size;
-                first_half_ptr->prev_distance = this_ptr->prev_distance;
-
-                return (void *)((size_t)first_half_ptr + sizeof(heap::HeapHeader));
+                    return (void*)((size_t)first_half_ptr + sizeof(heap::HeapHeader));
+                }
+                else
+                {
+                    this_ptr->flag = IN_USE;
+                    return this_ptr;
+                }
             }
 
             if (this_ptr->next_distance == 0)
             {
-                return;
+                return nullptr;
             }
             this_ptr = (heap::HeapHeader *)((size_t)this_ptr + this_ptr->next_distance);
         }
@@ -74,64 +81,64 @@ namespace heap
         return nullptr;
     }
 
-    void HeapManager::Free(void *ptr)
+    void HeapManager::Free(void *data_ptr)
     {
         heap_mutex_.Lock();
 
-        heap::HeapHeader* this_ptr;
+        heap::HeapHeader* header_ptr;
 
-        this_ptr = (heap::HeapHeader *)((size_t)ptr-sizeof(HeapHeader));
+        header_ptr = (heap::HeapHeader *)((size_t)data_ptr-sizeof(HeapHeader));
 
-        if ( (this_ptr->flag & IN_USE) == 1)
+        if ( (header_ptr->flag & IN_USE) == 1)
         {
-            this_ptr->flag = this_ptr->flag ^ IN_USE;
+            header_ptr->flag = header_ptr->flag ^ IN_USE;
         }
 
         while(true)
         {
-            if (this_ptr->next_distance == 0 || OutOfBound(this_ptr))
+            if (header_ptr->next_distance == 0 || OutOfBound(header_ptr))
             {
                 break;
             }
-            heap::HeapHeader* next_ptr = (heap::HeapHeader *)((size_t)ptr + this_ptr->next_distance);
+            heap::HeapHeader* next_ptr = (heap::HeapHeader *)((size_t)header_ptr + header_ptr->next_distance);
             if ( (next_ptr->flag & IN_USE) == 0 )
             {
-                next_ptr->prev_distance += this_ptr->prev_distance;
+                next_ptr->prev_distance += header_ptr->prev_distance;
             }
             else 
             {
                 break;
             }
-            this_ptr = next_ptr;
+            header_ptr = next_ptr;
         }
 
-        this_ptr = (heap::HeapHeader *)ptr;
+        header_ptr = (heap::HeapHeader*)((size_t)data_ptr - sizeof(HeapHeader));
 
         while(true)
         {
-            if (this_ptr->prev_distance == 0 || OutOfBound(this_ptr))
+            if (header_ptr->prev_distance == 0 || OutOfBound(header_ptr))
             {
                 break;
             }
-            heap::HeapHeader* prev_ptr = (heap::HeapHeader *)((size_t)ptr - this_ptr->prev_distance);
+            heap::HeapHeader* prev_ptr = (heap::HeapHeader *)((size_t)header_ptr - header_ptr->prev_distance);
 
             if ( (prev_ptr->flag & IN_USE) == 0 )
             {
-                prev_ptr->next_distance += this_ptr->next_distance;
+                prev_ptr->next_distance += header_ptr->next_distance;
             }
             else 
             {
                 break;
             }
-            this_ptr = prev_ptr;
+            header_ptr = prev_ptr;
         }
 
         heap_mutex_.Unlock();
     }
 
-    bool HeapManager::OutOfBound(void* ptr)
+    bool HeapManager::OutOfBound(void* header_ptr)
     {
-        if (size_ <= sizeof(heap::HeapHeader) || (size_t)ptr < (size_t)ptr_ || size_t(ptr) > (size_t)(ptr_) + size_ - sizeof(heap::HeapHeader))
+        if (size_ <= sizeof(heap::HeapHeader) || (size_t)header_ptr < (size_t)ptr_ || size_t(header_ptr) > (size_t)(ptr_) + size_ - sizeof(heap::HeapHeader))
         {
             return true;
         }
@@ -141,7 +148,7 @@ namespace heap
 
     void *HeapManager::GetStartPointer() const
     {
-        return nullptr;
+        return ptr_;
     }
 
     void HeapManager::SetStartPointer(void* ptr)

@@ -7,11 +7,12 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <semaphore.h> 
-#include <unistd.h> 
-#include <fcntl.h>           /* For O_* constants */
-#include <sys/stat.h>        /* For mode constants */
-
+#ifdef __linux__
+    #include <semaphore.h> 
+    #include <unistd.h> 
+    #include <fcntl.h>           /* For O_* constants */
+    #include <sys/stat.h>        /* For mode constants */
+#endif
 #include "ulti/define.h"
 
 namespace ulti

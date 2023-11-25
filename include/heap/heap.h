@@ -17,15 +17,15 @@ namespace heap
         HeapManager(void* ptr, DWORD size);
 
         void* Alloc(DWORD size);
-        void Free(void* ptr);
+        void Free(void* data_ptr);
     
-        bool OutOfBound(void* ptr);
 
         void* GetStartPointer() const;
 
         DWORD GetTotalHeapSize() const;
 
     protected:
+        bool OutOfBound(void* header_ptr);
         void SetTotalHeapSize(DWORD size);
         void SetStartPointer(void* ptr);
 
