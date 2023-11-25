@@ -7,6 +7,10 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <semaphore.h> 
+#include <unistd.h> 
+#include <fcntl.h>           /* For O_* constants */
+#include <sys/stat.h>        /* For mode constants */
 
 #include "ulti/define.h"
 

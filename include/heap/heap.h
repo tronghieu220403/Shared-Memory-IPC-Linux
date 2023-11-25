@@ -2,6 +2,7 @@
 #define SHAREDMEMORYIPC_HEAP_HEAP_H_
 
 #include "heap/define.h"
+#include "sync/mutex.h"
 
 namespace heap
 {
@@ -10,8 +11,9 @@ namespace heap
     private:
         void* ptr_;
         DWORD size_;
+        sync::NamedMutex heap_mutex_;
     public:
-        
+        HeapManager() = delete;
         HeapManager(void* ptr, DWORD size);
 
         void* Alloc(DWORD size);

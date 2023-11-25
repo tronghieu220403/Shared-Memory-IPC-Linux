@@ -5,16 +5,16 @@ namespace sync
     NamedMutex::NamedMutex(const std::string_view& mutex_name):
         mutex_name_(mutex_name)
     {
-        Open(mutex_name);
+        Open();
     }
 
-    void NamedMutex::Open(const std::string_view& mutex_name):
-        mutex_name_(mutex_name)
+    void NamedMutex::Open()
     {
+    #ifdef __linux__
         Close();
-        if (mutex_name.size() != 0)
+        if (mutex_name_.size() != 0)
         {
-            std::string name = "/" + mutex_name;
+            std::string name = std::string("/") + std::string(mutex_name_);
             p_sema_ = sem_open(name.data(), O_RDWR | O_CREAT, 0660, 1);
             if (p_sema_ == SEM_FAILED){
                 p_sema_ = sem_open(name.data(), O_RDWR);
@@ -25,6 +25,7 @@ namespace sync
         {
             sem_init(p_sema_, 0, 1);
         }
+    #endif
     }
 
     std::string NamedMutex::GetMutexName() const
@@ -39,22 +40,28 @@ namespace sync
 
     void NamedMutex::Lock()
     {
+    #ifdef __linux__
         sem_wait(p_sema_);
+    #endif
     }
 
     void NamedMutex::Unlock()
     {
+    #ifdef __linux__
         sem_post(p_sema_);
+    #endif
     }
 
     void NamedMutex::Close()
     {
+    #ifdef __linux__
         if (p_sema_ != nullptr)
         {
             sem_destroy(p_sema_);
             p_sema_ = nullptr;
-            ulti::ZeroMemory(&sema_, sizeof(sema_));
+            ulti::ZeroMemory(p_sema_, sizeof(p_sema_));
         }
+    #endif
     }
 
     NamedMutex::~NamedMutex()

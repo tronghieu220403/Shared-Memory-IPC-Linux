@@ -4,12 +4,20 @@ namespace heap
 {
     HeapManager::HeapManager(void *ptr, DWORD size):
         ptr_(ptr),
-        size_(size)
+        size_(size),
+        heap_mutex_("heap_sync")
     {
+        heap_mutex_.Open();
     }
 
     void* HeapManager::Alloc(DWORD size)
     {
+        if (size == 0)
+        {
+            return nullptr;
+        }
+        
+        heap_mutex_.Lock();
         heap::HeapHeader* this_ptr = (heap::HeapHeader *)ptr_;
         DWORD true_size = (size+sizeof(heap::HeapHeader))%16 == 0 ? (size+sizeof(heap::HeapHeader)) : ((size+sizeof(heap::HeapHeader))/16+1);
 
@@ -46,12 +54,14 @@ namespace heap
             }
             this_ptr = (heap::HeapHeader *)((size_t)this_ptr + this_ptr->next_distance);
         }
-
+        heap_mutex_.Unlock();
         return nullptr;
     }
 
     void HeapManager::Free(void *ptr)
     {
+        heap_mutex_.Lock();
+
         heap::HeapHeader* this_ptr;
 
         this_ptr = (heap::HeapHeader *)((size_t)ptr-sizeof(HeapHeader));
@@ -99,11 +109,13 @@ namespace heap
             }
             this_ptr = prev_ptr;
         }
+
+        heap_mutex_.Unlock();
     }
 
     bool HeapManager::OutOfBound(void* ptr)
     {
-        if ((size_t)ptr < (size_t)ptr_ || size_t(ptr) > (size_t)(ptr_) + size_ - sizeof(heap::HeapHeader))
+        if (size_ <= sizeof(heap::HeapHeader) || (size_t)ptr < (size_t)ptr_ || size_t(ptr) > (size_t)(ptr_) + size_ - sizeof(heap::HeapHeader))
         {
             return true;
         }

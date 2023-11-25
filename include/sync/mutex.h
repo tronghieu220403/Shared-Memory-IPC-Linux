@@ -11,13 +11,14 @@ namespace sync
     private:
         std::string mutex_name_;
 
-        sem_t *p_sema_;
-        
+        #ifdef __linux__
+            sem_t *p_sema_;
+        #endif            
     public:
         NamedMutex() = default;
         explicit NamedMutex(const std::string_view& mutex_name);
         
-        void Open(const std::string_view& mutex_name);
+        void Open();
         void Close();
 
         void Lock();
