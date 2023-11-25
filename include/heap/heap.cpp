@@ -8,6 +8,22 @@ namespace heap
         heap_mutex_("heap_sync")
     {
         heap_mutex_.Open();
+
+        DWORD true_size = (size - sizeof(heap::HeapHeader))/0x10*0x10;
+
+        heap::HeapHeader* first_ptr = (heap::HeapHeader*)ptr_;
+        heap::HeapHeader* last_ptr = (heap::HeapHeader*)((size_t)ptr_ + true_size);
+        ulti::ZeroMemory(first_ptr, sizeof(heap::HeapHeader));
+        ulti::ZeroMemory(last_ptr, sizeof(heap::HeapHeader));
+
+        first_ptr->flag = 0;
+        first_ptr->prev_distance = 0;
+        first_ptr->next_distance = (size_t)last_ptr - (size_t)first_ptr;
+
+        last_ptr->flag = IN_USE;
+        last_ptr->prev_distance = first_ptr->next_distance;
+        last_ptr->next_distance = 0;
+
     }
 
     void* HeapManager::Alloc(DWORD size)
@@ -16,10 +32,10 @@ namespace heap
         {
             return nullptr;
         }
-        
+
         heap_mutex_.Lock();
         heap::HeapHeader* this_ptr = (heap::HeapHeader *)ptr_;
-        DWORD true_size = (size+sizeof(heap::HeapHeader))%16 == 0 ? (size+sizeof(heap::HeapHeader)) : ((size+sizeof(heap::HeapHeader))/16+1);
+        DWORD true_size = (size+sizeof(heap::HeapHeader))%0x10 == 0 ? (size+sizeof(heap::HeapHeader))*0x10 : ((size+sizeof(heap::HeapHeader))/0x10+1)*0x10;
 
         while(true)
         {
