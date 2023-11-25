@@ -1,6 +1,6 @@
 #include "mutex.h"
 
-namespace sync
+namespace synchronization
 {
     NamedMutex::NamedMutex(const std::string_view& mutex_name):
         mutex_name_(mutex_name)

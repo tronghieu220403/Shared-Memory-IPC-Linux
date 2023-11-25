@@ -18,7 +18,7 @@ namespace process
 
     bool Process::IsActive()
     {
-        
+        return false;
     };
 
     std::string Process::GetName() const

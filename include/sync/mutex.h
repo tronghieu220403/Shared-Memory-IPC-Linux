@@ -4,7 +4,7 @@
 
 #include "ulti/framework.h"
 
-namespace sync
+namespace synchronization
 {
     class NamedMutex
     {

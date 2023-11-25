@@ -11,7 +11,7 @@ namespace heap
     private:
         void* ptr_;
         DWORD size_;
-        sync::NamedMutex heap_mutex_;
+        synchronization::NamedMutex heap_mutex_;
     public:
         HeapManager() = delete;
         HeapManager(void* ptr, DWORD size);
