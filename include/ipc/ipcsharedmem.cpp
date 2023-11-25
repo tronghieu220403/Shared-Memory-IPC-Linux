@@ -92,7 +92,7 @@ namespace ipc
             free_queue.push_back(msg_header_ptr);
             
             NEXT_LABEL:
-            
+
             if (((heap::HeapHeader*)&heap_header_data[0])->next_distance == 0)
             {
                 break;
@@ -122,6 +122,37 @@ namespace ipc
         memcpy(&flat_data[0], &header, sizeof(MessageStructure));
         memcpy(&flat_data[12], &data[0], data.size());
     }
+
+    heap::HeapManager IpcSharedMemory::GetHeapManager() const
+    {
+        return heap_manager_;
+    }
+
+    void IpcSharedMemory::SetHeapManager(const heap::HeapManager& heap_manager)
+    {
+        heap_manager_ = heap_manager;
+    }
+
+    synchronization::NamedMutex IpcSharedMemory::GetIpcMutex() const
+    {
+        return ipc_mutex_;
+    }
+
+    void IpcSharedMemory::SetIpcMutex(const synchronization::NamedMutex& ipc_mutex)
+    {
+        ipc_mutex_ = ipc_mutex;
+    }
+
+    memory::SharedMemory IpcSharedMemory::GetSharedMemory() const
+    {
+        return shm_;
+    }
+
+    void IpcSharedMemory::SetSharedMemory(const memory::SharedMemory& shm)
+    {
+        shm_ = shm;
+    }
+
 
 }
 

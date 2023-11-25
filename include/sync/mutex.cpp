@@ -65,6 +65,6 @@ namespace synchronization
 
     NamedMutex::~NamedMutex()
     {
-        // Close();
+        Close();
     }
 }
