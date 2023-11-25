@@ -98,12 +98,12 @@ namespace ipc
                 break;
             }
 
-            // Get the pointer of the next heap header
+            // Get the pointer of next heap header
             heap_header_ptr = (heap::HeapHeader*)
                                 ((size_t)heap_header_ptr + 
                                     ((heap::HeapHeader*)&heap_header_data[0])->next_distance);
 
-            // Read the content of the next heap header
+            // Read the content of next heap header
             heap_header_data = shm_.Read(heap_header_ptr, sizeof(heap::HeapHeader*));
         }
 
@@ -152,7 +152,6 @@ namespace ipc
     {
         shm_ = shm;
     }
-
 
 }
 
