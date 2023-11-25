@@ -6,14 +6,16 @@
 namespace heap
 {
     struct HeapHeader{
-        DWORD prev;
-        DWORD next;
+        DWORD prev_distance;
+        DWORD next_distance;
         DWORD send_id;
         DWORD recv_id;
         DWORD time_stamp;
-        DWORD size;
+        DWORD flag;
+        DWORD reserve[2];
     };   
 
+    #define IN_USE 0x1
 }
 
 #endif

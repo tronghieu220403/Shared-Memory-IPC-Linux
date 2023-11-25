@@ -1,7 +1,7 @@
 #ifndef SHAREDMEMORYIPC_HEAP_HEAP_H_
 #define SHAREDMEMORYIPC_HEAP_HEAP_H_
 
-#include "ulti/framework.h"
+#include "heap/define.h"
 
 namespace heap
 {
@@ -9,19 +9,25 @@ namespace heap
     {
     private:
         void* ptr_;
+        DWORD size_;
     public:
         
-        HeapManager(void* ptr);
-
-        void* GetStartPointer() const;
-        void SetStartPointer(void* ptr);
+        HeapManager(void* ptr, DWORD size);
 
         void* Alloc(DWORD size);
         void Free(void* ptr);
     
-    private:
+        bool OutOfBound(void* ptr);
 
-    }
+        void* GetStartPointer() const;
+
+        DWORD GetTotalHeapSize() const;
+
+    protected:
+        void SetTotalHeapSize(DWORD size);
+        void SetStartPointer(void* ptr);
+
+    };
 }
 
 #endif
