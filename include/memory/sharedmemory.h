@@ -17,11 +17,11 @@ namespace memory
 		
         void Create();
 
-        std::vector<UCHAR> Read(DWORD offset, size_t size);
-        bool Write(DWORD offset, void* data, size_t size);
+        std::vector<UCHAR> Read(void* ptr, size_t size);
+        bool Write(void* ptr, void* data, size_t size);
 
-        bool OutOfBound(DWORD offset);
-        bool OutOfBound(DWORD offset, size_t size);
+        bool OutOfBound(void* ptr);
+        bool OutOfBound(void* ptr, size_t size);
 
         DWORD GetSize() const;
         void* GetSharedMemoryPointer() const;

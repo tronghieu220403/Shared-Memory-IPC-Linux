@@ -79,6 +79,7 @@
         "numeric": "cpp",
         "random": "cpp",
         "numbers": "cpp",
-        "semaphore": "cpp"
+        "semaphore": "cpp",
+        "fstream": "cpp"
     }
 }

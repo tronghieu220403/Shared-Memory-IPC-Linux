@@ -11,7 +11,6 @@ namespace heap
     private:
         void* ptr_;
         DWORD size_;
-        synchronization::NamedMutex heap_mutex_;
     public:
         HeapManager() = delete;
         HeapManager(void* ptr, DWORD size);
@@ -19,16 +18,15 @@ namespace heap
         void* Alloc(DWORD size);
         void Free(void* data_ptr);
     
-
         void* GetStartPointer() const;
 
         DWORD GetTotalHeapSize() const;
 
     protected:
+        void Init();
         bool OutOfBound(void* header_ptr);
         void SetTotalHeapSize(DWORD size);
         void SetStartPointer(void* ptr);
-
     };
 }
 

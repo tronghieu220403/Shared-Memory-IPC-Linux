@@ -4,6 +4,6 @@ namespace ulti
 {
     void ZeroMemory(void* data, DWORD size)
     {
-        memset(data, 0, size);
+        ::memset(data, 0, size);
     }
 }

@@ -35,35 +35,34 @@ namespace process
     {
         int pid = 0;
 
-			DIR* dir = opendir("/proc");
-			if (!dir) {
-				return false;
-			}
+		DIR* dir = ::opendir("/proc");
+		if (!dir) {
+			return false;
+		}
 
-			bool found = false;
-			dirent* entry;
-			while ((entry = readdir(dir)) != nullptr && !found) {
-				// check if the entry is a directory and its name is a number
-				if (entry->d_type == DT_DIR && std::isdigit(entry->d_name[0])) {
-					// read the process name from the cmdline file
-					std::string cmdPath = std::string("/proc/") + entry->d_name + "/cmdline";
-					//std::cout << cmdPath.c_str() << std::endl;
-					
-					std::ifstream cmdFile(cmdPath.c_str());
-					std::string cmdLine;
-					std::getline(cmdFile, cmdLine);
+		bool found = false;
+		dirent* entry;
+		while ((entry = ::readdir(dir)) != nullptr && !found) {
+			// check if the entry is a directory and its name is a number
+			if (entry->d_type == DT_DIR && std::isdigit(entry->d_name[0])) {
+				// read the process name from the cmdline file
+				std::string cmdPath = std::string("/proc/") + entry->d_name + "/cmdline";
+				//std::cout << cmdPath.c_str() << std::endl;
+				
+				std::ifstream cmdFile(cmdPath.c_str());
+				std::string cmdLine;
+				std::getline(cmdFile, cmdLine);
 
-					// check if the process name matches
-					if (!cmdLine.empty() && cmdLine.find(name) != std::string::npos) {
-						pid = std::stoi(entry->d_name);
-						break;
-					}
-					
+				// check if the process name matches
+				if (!cmdLine.empty() && cmdLine.find(name) != std::string::npos) {
+					pid = std::stoi(entry->d_name);
+					break;
 				}
+				
 			}
-			closedir(dir);
+		}
+		::closedir(dir);
 
-        
         return pid;
 	};
 

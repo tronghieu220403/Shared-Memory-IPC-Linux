@@ -15,15 +15,15 @@ namespace synchronization
         if (mutex_name_.size() != 0)
         {
             std::string name = std::string("/") + std::string(mutex_name_);
-            p_sema_ = sem_open(name.data(), O_RDWR | O_CREAT, 0660, 1);
+            p_sema_ = ::sem_open(name.data(), O_RDWR | O_CREAT, 0660, 1);
             if (p_sema_ == SEM_FAILED){
-                p_sema_ = sem_open(name.data(), O_RDWR);
+                p_sema_ = ::sem_open(name.data(), O_RDWR);
                 return;
             }
         }
         else
         {
-            sem_init(p_sema_, 0, 1);
+            ::sem_init(p_sema_, 0, 1);
         }
     #endif
     }
@@ -41,14 +41,14 @@ namespace synchronization
     void NamedMutex::Lock()
     {
     #ifdef __linux__
-        sem_wait(p_sema_);
+        ::sem_wait(p_sema_);
     #endif
     }
 
     void NamedMutex::Unlock()
     {
     #ifdef __linux__
-        sem_post(p_sema_);
+        ::sem_post(p_sema_);
     #endif
     }
 
@@ -57,15 +57,14 @@ namespace synchronization
     #ifdef __linux__
         if (p_sema_ != nullptr)
         {
-            sem_destroy(p_sema_);
+            ::sem_close(p_sema_);
             p_sema_ = nullptr;
-            ulti::ZeroMemory(p_sema_, sizeof(p_sema_));
         }
     #endif
     }
 
     NamedMutex::~NamedMutex()
     {
-        Close();
+        // Close();
     }
 }

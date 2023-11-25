@@ -2,14 +2,9 @@
 
 namespace heap
 {
-    HeapManager::HeapManager(void *ptr, DWORD size):
-        ptr_(ptr),
-        size_(size),
-        heap_mutex_("heap_sync")
+    void HeapManager::Init()
     {
-        heap_mutex_.Open();
-
-        DWORD true_size = (size - sizeof(heap::HeapHeader))/0x10*0x10;
+        DWORD true_size = (size_ - sizeof(heap::HeapHeader))/0x10*0x10;
 
         heap::HeapHeader* first_ptr = (heap::HeapHeader*)ptr_;
         heap::HeapHeader* last_ptr = (heap::HeapHeader*)((size_t)ptr_ + true_size);
@@ -23,7 +18,13 @@ namespace heap
         last_ptr->flag = IN_USE;
         last_ptr->prev_distance = first_ptr->next_distance;
         last_ptr->next_distance = 0;
+    }
 
+    HeapManager::HeapManager(void *ptr, DWORD size):
+        ptr_(ptr),
+        size_(size)
+    {
+        HeapManager::Init();
     }
 
     void* HeapManager::Alloc(DWORD size)
@@ -33,7 +34,6 @@ namespace heap
             return nullptr;
         }
 
-        heap_mutex_.Lock();
         heap::HeapHeader* this_ptr = (heap::HeapHeader *)ptr_;
         DWORD true_size = (size+sizeof(heap::HeapHeader))%0x10 == 0 ? (size+sizeof(heap::HeapHeader)) : ((size+sizeof(heap::HeapHeader))/0x10+1)*0x10;
 
@@ -47,9 +47,10 @@ namespace heap
             if ( (this_ptr->flag & IN_USE) == 0 &&
                 this_ptr->next_distance >= true_size)
             {
+                // if enough room for split in to 2 part
                 if (this_ptr->next_distance >= true_size + sizeof(heap::HeapHeader))
                 {
-                    // split the heap into 2 part
+                    // split the heap into 2 parts
 
                     heap::HeapHeader* second_half_ptr = (heap::HeapHeader*)((size_t)this_ptr + true_size);
                     ulti::ZeroMemory(second_half_ptr, sizeof(heap::HeapHeader));
@@ -64,10 +65,10 @@ namespace heap
 
                     return (void*)((size_t)first_half_ptr + sizeof(heap::HeapHeader));
                 }
-                else
+                else // else if not enough room for split in to 2 parts, we will only change the flag of the pointer
                 {
                     this_ptr->flag = IN_USE;
-                    return this_ptr;
+                    return (void*)((size_t)this_ptr + sizeof(heap::HeapHeader));
                 }
             }
 
@@ -77,14 +78,11 @@ namespace heap
             }
             this_ptr = (heap::HeapHeader *)((size_t)this_ptr + this_ptr->next_distance);
         }
-        heap_mutex_.Unlock();
         return nullptr;
     }
 
     void HeapManager::Free(void *data_ptr)
     {
-        heap_mutex_.Lock();
-
         heap::HeapHeader* header_ptr;
 
         header_ptr = (heap::HeapHeader *)((size_t)data_ptr-sizeof(HeapHeader));
@@ -132,8 +130,6 @@ namespace heap
             }
             header_ptr = prev_ptr;
         }
-
-        heap_mutex_.Unlock();
     }
 
     bool HeapManager::OutOfBound(void* header_ptr)
