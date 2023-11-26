@@ -4,13 +4,14 @@ namespace heap
 {
     void HeapManager::Init()
     {
-        size_ = (size_ - sizeof(heap::HeapHeader))/0x10*0x10;
+        size_ = (size_ - sizeof(heap::HeapHeader))/0x10*0x10 - 0x10;
 
         // Check if the heap has been build
         DWORD check1 = *(DWORD *)ptr_;
         DWORD check2 = *(DWORD *)((size_t)ptr_ + sizeof(DWORD));
         if (check1 == 0x22042003 && check2 == 0x20030422)
         {
+            ptr_ = (void *)((size_t)ptr_ + sizeof(DWORD) * 2);
             return;
         }
         *(DWORD *)ptr_ = 0x22042003;

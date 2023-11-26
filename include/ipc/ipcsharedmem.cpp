@@ -40,6 +40,7 @@ namespace ipc
         MessageStructure msg = {0};
         msg.header.recv_pid = receiver_pid;
         msg.header.send_pid = ::getpid();
+        msg.header.data_size = data.size();
         msg.data = data;
         return IpcSharedMemory::Send(msg);
     }
@@ -60,9 +61,8 @@ namespace ipc
 
         std::vector<void *> free_queue;
 
-
         ipc_mutex_.Lock();
-        ulti::PrintDebug("Enter IPC lock");
+        // ulti::PrintDebug("Enter IPC lock");
 
         while(true)
         {
@@ -75,8 +75,6 @@ namespace ipc
             // Read the content of MessageHeader
             msg_header_ptr = (MessageHeader *)((size_t)heap_header_ptr+sizeof(heap::HeapHeader));
             msg_header_data = shm_.Read(msg_header_ptr, sizeof(MessageHeader));
-
-            std::cout << ::getpid() << " " << ((MessageHeader *)&msg_header_data[0])->recv_pid << std::endl;
 
             // Check if the recv_pid is the pid of the receiver
             if (::getpid() != ((MessageHeader *)&msg_header_data[0])->recv_pid)
@@ -117,7 +115,7 @@ namespace ipc
                                     ((heap::HeapHeader*)&heap_header_data[0])->next_distance);
 
             // Read the content of next heap header
-            heap_header_data = shm_.Read(heap_header_ptr, sizeof(heap::HeapHeader*));
+            heap_header_data = shm_.Read(heap_header_ptr, sizeof(heap::HeapHeader));
         }
 
         for (auto value: free_queue)
@@ -126,7 +124,7 @@ namespace ipc
         }
 
         ipc_mutex_.Unlock();
-        ulti::PrintDebug("Exit IPC lock");
+        // ulti::PrintDebug("Exit IPC lock");
         return ans;
     }
 

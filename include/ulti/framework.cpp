@@ -8,7 +8,7 @@ namespace ulti
     }
     void PrintDebug(const std::string_view& str)
     {
-        std::cout << str << std::endl;
+        // std::cout << str << std::endl;
     }
 
 }

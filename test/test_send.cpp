@@ -19,7 +19,7 @@ void SendThread()
         {
             while(true)
             {
-                cout << "Updating PID..." << endl;
+                ulti::PrintDebug("Updating PID...");
                 if (p.UpdatePid() == 0)
                 {
                     sleep(1);
