@@ -24,6 +24,7 @@
 namespace ulti
 {
     void ZeroMemory(void* data, DWORD size);
+    void PrintDebug(const std::string_view& str);
 }
 
 #endif

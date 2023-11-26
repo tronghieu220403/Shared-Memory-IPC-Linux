@@ -6,7 +6,7 @@ namespace memory
         memory_name_(memory_name),
         size_(size)
     {
-
+        SharedMemory::Create();
     }
 
     void SharedMemory::Create()

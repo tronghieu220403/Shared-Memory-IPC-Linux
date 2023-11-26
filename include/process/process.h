@@ -15,6 +15,7 @@ namespace process
 		explicit Process(int pid);
 		explicit Process(const std::string_view& name);
 		
+		int UpdatePid();
 		int GetPid() const;
 		void SetPid(int id);
 		bool IsActive();

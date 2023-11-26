@@ -5,7 +5,7 @@ namespace ipc
     IpcSharedMemory::IpcSharedMemory():
         shm_(IPC_SHM_NAME, IPC_SHM_SIZE),
         heap_manager_(shm_.GetSharedMemoryPointer(), shm_.GetSize()),
-        ipc_mutex_("ipc_sync_mutex")
+        ipc_mutex_(IPC_MUTEX_NAME)
     {
 
     }
@@ -13,21 +13,25 @@ namespace ipc
     bool IpcSharedMemory::Send(const MessageStructure &msg)
     {
         ipc_mutex_.Lock();
+        ulti::PrintDebug("Enter IPC lock");
         std::vector<UCHAR> flat_msg = msg.Flat();
         void* ptr = heap_manager_.Alloc(flat_msg.size());
         if (ptr == nullptr)
         {
             ipc_mutex_.Unlock();
+            ulti::PrintDebug("Exit IPC lock");
             return false;
         }
 
         if (shm_.Write(ptr, &flat_msg[0], flat_msg.size()) == true)
         {
             ipc_mutex_.Unlock();
+            ulti::PrintDebug("Exit IPC lock");
             return true;
         }
-
+        
         ipc_mutex_.Unlock();
+        ulti::PrintDebug("Exit IPC lock");
         return false;
     }
 
@@ -35,7 +39,7 @@ namespace ipc
     {
         MessageStructure msg = {0};
         msg.header.recv_pid = receiver_pid;
-        msg.header.recv_pid = ::getpid();
+        msg.header.send_pid = ::getpid();
         msg.data = data;
         return IpcSharedMemory::Send(msg);
     }
@@ -46,7 +50,7 @@ namespace ipc
         ipc::MessageStructure msg;
 
         heap::HeapHeader* heap_header_ptr = (heap::HeapHeader*)heap_manager_.GetStartPointer();
-        std::vector<UCHAR> heap_header_data = shm_.Read(heap_header_ptr, sizeof(heap::HeapHeader*));
+        std::vector<UCHAR> heap_header_data = shm_.Read(heap_header_ptr, sizeof(heap::HeapHeader));
 
         ipc::MessageHeader* msg_header_ptr;
         std::vector<UCHAR> msg_header_data;
@@ -56,7 +60,9 @@ namespace ipc
 
         std::vector<void *> free_queue;
 
+
         ipc_mutex_.Lock();
+        ulti::PrintDebug("Enter IPC lock");
 
         while(true)
         {
@@ -70,9 +76,16 @@ namespace ipc
             msg_header_ptr = (MessageHeader *)((size_t)heap_header_ptr+sizeof(heap::HeapHeader));
             msg_header_data = shm_.Read(msg_header_ptr, sizeof(MessageHeader));
 
+            std::cout << ::getpid() << " " << ((MessageHeader *)&msg_header_data[0])->recv_pid << std::endl;
+
             // Check if the recv_pid is the pid of the receiver
             if (::getpid() != ((MessageHeader *)&msg_header_data[0])->recv_pid)
             {
+                // Check if the recv process is still active
+                if (process::Process(((MessageHeader *)&msg_header_data[0])->recv_pid).IsActive() == false)
+                {
+                    free_queue.push_back(msg_header_ptr);
+                }
                 goto NEXT_LABEL;
             }
 
@@ -113,14 +126,8 @@ namespace ipc
         }
 
         ipc_mutex_.Unlock();
+        ulti::PrintDebug("Exit IPC lock");
         return ans;
-    }
-
-    std::vector<UCHAR> MessageStructure::Flat() const
-    {
-        std::vector<UCHAR> flat_data(sizeof(DWORD)*3 + data.size());
-        memcpy(&flat_data[0], &header, sizeof(MessageStructure));
-        memcpy(&flat_data[12], &data[0], data.size());
     }
 
     heap::HeapManager IpcSharedMemory::GetHeapManager() const

@@ -4,10 +4,21 @@ namespace heap
 {
     void HeapManager::Init()
     {
-        DWORD true_size = (size_ - sizeof(heap::HeapHeader))/0x10*0x10;
+        size_ = (size_ - sizeof(heap::HeapHeader))/0x10*0x10;
+
+        // Check if the heap has been build
+        DWORD check1 = *(DWORD *)ptr_;
+        DWORD check2 = *(DWORD *)((size_t)ptr_ + sizeof(DWORD));
+        if (check1 == 0x22042003 && check2 == 0x20030422)
+        {
+            return;
+        }
+        *(DWORD *)ptr_ = 0x22042003;
+        *(DWORD *)((size_t)ptr_ + sizeof(DWORD)) = 0x20030422;
+        ptr_ = (void *)((size_t)ptr_ + sizeof(DWORD) * 2);
 
         heap::HeapHeader* first_ptr = (heap::HeapHeader*)ptr_;
-        heap::HeapHeader* last_ptr = (heap::HeapHeader*)((size_t)ptr_ + true_size);
+        heap::HeapHeader* last_ptr = (heap::HeapHeader*)((size_t)ptr_ + size_ - sizeof(heap::HeapHeader));
         ulti::ZeroMemory(first_ptr, sizeof(heap::HeapHeader));
         ulti::ZeroMemory(last_ptr, sizeof(heap::HeapHeader));
 

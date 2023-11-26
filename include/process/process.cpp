@@ -16,9 +16,17 @@ namespace process
 		pid_ = pid;
 	};
 
+	int Process::UpdatePid()
+	{
+		int pid = Process::FindProcessByName(name_);
+		Process::SetPid(pid);
+		return pid;
+	}
+
     bool Process::IsActive()
     {
-        return false;
+		std::string path = "/proc/" + std::to_string(Process::GetPid()) + "/";
+        return std::filesystem::exists(path);
     };
 
     std::string Process::GetName() const

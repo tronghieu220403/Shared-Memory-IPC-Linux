@@ -8,20 +8,6 @@ using namespace std;
 
 ipc::IpcSharedMemory com;
 
-void SendThread()
-{
-    process::Process p("process1");
-    while(true)
-    {
-        string s;
-        cin>>s;
-        if (com.Send(p.GetPid(), std::vector<UCHAR>(s.begin(), s.end())) == true)
-        {
-            cout << "Sent successfully" << endl;
-        }
-    }
-}
-
 void RecvThread()
 {
     while(true)
@@ -37,15 +23,11 @@ void RecvThread()
         }
         sleep(1);
     }
-
 }
 
 int main()
 {
-    // thread recv_thread(&RecvThread);
-    thread send_thread(&SendThread);
-
-    // recv_thread.join();
-    send_thread.join();
+    cout << "test_recv PID: " << ::getpid() << endl;
+    thread recv_thread(&RecvThread);recv_thread.join();
     return 0;
 }

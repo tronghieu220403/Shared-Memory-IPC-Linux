@@ -6,4 +6,9 @@ namespace ulti
     {
         ::memset(data, 0, size);
     }
+    void PrintDebug(const std::string_view& str)
+    {
+        std::cout << str << std::endl;
+    }
+
 }
