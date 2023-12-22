@@ -10,45 +10,72 @@ namespace ipc
 
     }
 		
-    bool IpcSharedMemory::Send(const MessageStructure &msg)
+    bool IpcSharedMemory::Send(ipc::Message& msg)
     {
-        ipc_mutex_.Lock();
-        ulti::PrintDebug("Enter IPC lock");
-        std::vector<UCHAR> flat_msg = msg.Flat();
-        void* ptr = heap_manager_.Alloc(flat_msg.size());
-        if (ptr == nullptr)
-        {
-            ipc_mutex_.Unlock();
-            ulti::PrintDebug("Exit IPC lock");
-            return false;
-        }
+        bool ret = false;
+        std::vector<UCHAR> flat_msg;
 
-        if (shm_.Write(ptr, &flat_msg[0], flat_msg.size()) == true)
-        {
-            ipc_mutex_.Unlock();
-            ulti::PrintDebug("Exit IPC lock");
-            return true;
+        for (DWORD i = 0; i * IPC_MAX_MSG_SIZE < msg.header.total_size; i++)
+        {   
+            ipc::Message frag_msg = {0};
+            memcpy(&frag_msg.header, &msg.header, sizeof(ipc::MessageHeader));
+            frag_msg.header.index = i * IPC_MAX_MSG_SIZE;
+            
+            frag_msg.header.data_size = std::min((DWORD)IPC_MAX_MSG_SIZE, msg.header.total_size - i * IPC_MAX_MSG_SIZE);
+            
+            frag_msg.data.resize(frag_msg.header.data_size);
+
+            memcpy(&frag_msg.data[0], &msg.data[i * IPC_MAX_MSG_SIZE], frag_msg.header.data_size);
+
+            flat_msg = frag_msg.Flat();
+            
+            while(true)
+            {
+                ipc_mutex_.Lock();
+
+                void* ptr = heap_manager_.Alloc(flat_msg.size());
+                if (ptr == nullptr)
+                {
+                    ipc_mutex_.Unlock();
+                    continue;
+                }
+
+                if (shm_.Write(ptr, &flat_msg[0], flat_msg.size()) == true)
+                {
+                    ipc_mutex_.Unlock();
+                    break;
+                }
+                else
+                {
+                    ipc_mutex_.Unlock();
+                    continue;
+                }
+            }
+            
         }
-        
-        ipc_mutex_.Unlock();
-        ulti::PrintDebug("Exit IPC lock");
-        return false;
+        return true;
     }
 
     bool IpcSharedMemory::Send(DWORD receiver_pid, const std::vector<UCHAR>& data)
     {
-        MessageStructure msg = {0};
+        ipc::Message msg = {0};
+        
         msg.header.recv_pid = receiver_pid;
         msg.header.send_pid = ::getpid();
-        msg.header.data_size = data.size();
-        msg.data = data;
+        msg.header.total_size = data.size();
+
+        msg.data.resize(data.size());
+        memcpy(&msg.data[0], data.data(), data.size());
+
+        msg.header.checksum = msg.ipc::Message::CalculateChecksum();
+        
         return IpcSharedMemory::Send(msg);
     }
 
-    std::vector<ipc::MessageStructure> IpcSharedMemory::Receive()
+    std::vector<ipc::Message> IpcSharedMemory::Receive()
     {
-        std::vector<ipc::MessageStructure> ans;
-        ipc::MessageStructure msg;
+        std::vector<ipc::Message> recv_packet;
+        ipc::Message msg;
 
         heap::HeapHeader* heap_header_ptr = (heap::HeapHeader*)heap_manager_.GetStartPointer();
         std::vector<UCHAR> heap_header_data = shm_.Read(heap_header_ptr, sizeof(heap::HeapHeader));
@@ -66,7 +93,7 @@ namespace ipc
 
         while(true)
         {
-            // The heap must be in use
+            // Check if the chunk is in use or not
             if ((((heap::HeapHeader*)&heap_header_data[0])->flag & IN_USE)==0)
             {
                 goto NEXT_LABEL;
@@ -92,12 +119,10 @@ namespace ipc
             data = shm_.Read(data_ptr , msg_header_ptr->data_size);
 
             msg = {0};
-            msg.header.data_size = ((MessageHeader *)&msg_header_data[0])->data_size;
-            msg.header.recv_pid = ((MessageHeader *)&msg_header_data[0])->recv_pid;
-            msg.header.send_pid = ((MessageHeader *)&msg_header_data[0])->send_pid;
+            memcpy(&msg.header, ((MessageHeader *)&msg_header_data[0]), sizeof(ipc::MessageHeader));
             msg.data = data;
 
-            ans.push_back(msg);
+            recv_packet.push_back(msg);
 
             // Recveived, push to delete queue
             free_queue.push_back(msg_header_ptr);
@@ -125,7 +150,89 @@ namespace ipc
 
         ipc_mutex_.Unlock();
         // ulti::PrintDebug("Exit IPC lock");
-        return ans;
+
+        return ResolvePackets(recv_packet);
+    }
+
+    std::vector<ipc::Message> IpcSharedMemory::ResolvePackets(std::vector<ipc::Message> extra_packet)
+    {
+        for (auto& packet: extra_packet)
+        {
+            packet_list_.push_back(packet);
+        }
+        return ResolvePackets();
+    }
+
+    std::vector<ipc::Message> IpcSharedMemory::ResolvePackets()
+    {
+        std::vector<ipc::Message> msg_list;
+
+        for (auto& packet: packet_list_)
+        {
+            bool merged = false;
+            for (int i = 0; i < packet_merge_list_.size(); i++)
+            {
+                if (packet_merge_list_[i][0].header.checksum == packet.header.checksum)
+                {
+                    packet_merge_list_[i].push_back(packet);
+                    merged = true;
+                }
+            }
+            if (merged == false)
+            {
+                std::vector<ipc::Message> packet_merge_vector;
+                packet_merge_vector.push_back(packet);
+                packet_merge_list_.push_back(packet_merge_vector);
+            }
+        }
+        packet_list_.clear();
+
+        std::vector<int> delete_index;
+        for (int i = 0; i < packet_merge_list_.size(); i++) 
+        {
+            DWORD total_size_recv = 0;
+            DWORD real_total_size = packet_merge_list_[0][0].header.total_size;
+
+            for (auto& packet: packet_merge_list_[i])
+            {
+                total_size_recv += packet.header.data_size;
+                if (real_total_size != packet.header.total_size)
+                {
+                    delete_index.push_back(i);
+                    total_size_recv = -1;
+                    real_total_size = 0;
+                    break;
+                }
+            }
+
+            if (total_size_recv == real_total_size)
+            {
+                ipc::Message full_msg = {0};
+                
+                memcpy(&full_msg.header, &packet_merge_list_[i][0].header, sizeof(ipc::MessageHeader));
+                full_msg.header.checksum = 0;
+                full_msg.header.data_size = real_total_size;
+                full_msg.header.total_size = real_total_size;
+                full_msg.header.index = 0;
+
+                full_msg.data.resize(real_total_size);
+                for (auto& packet: packet_merge_list_[i])
+                {
+                    memcpy(&full_msg.data[packet.header.index], &packet.data[0], packet.header.data_size);
+                }
+
+                msg_list.push_back(full_msg);
+
+                delete_index.push_back(i);
+            }
+        }
+
+        for (int i = delete_index.size() - 1; i >= 0; i--)
+        {
+            packet_merge_list_.erase(packet_merge_list_.begin() + delete_index[i]);
+        }
+
+        return msg_list;
     }
 
     heap::HeapManager IpcSharedMemory::GetHeapManager() const

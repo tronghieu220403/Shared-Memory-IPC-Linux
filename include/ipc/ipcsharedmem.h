@@ -7,13 +7,17 @@
 #include "memory/sharedmemory.h"
 #include "sync/mutex.h"
 #include "process/process.h"
+#include <algorithm>
+
 
 namespace ipc
 {
 
-	class IpcSharedMemory {
+	class IpcSharedMemory 
+    {
 	private:
-
+        std::vector<ipc::Message> packet_list_;
+        std::vector< std::vector<ipc::Message> > packet_merge_list_;
         memory::SharedMemory shm_;
         heap::HeapManager heap_manager_;
         synchronization::NamedMutex ipc_mutex_;
@@ -22,11 +26,13 @@ namespace ipc
 
 		IpcSharedMemory();
 		
-        bool Send(const MessageStructure& msg);
+        bool Send(ipc::Message& msg);
         bool Send(DWORD receiver_pid, const std::vector<UCHAR>& data);
-        std::vector<ipc::MessageStructure> Receive();
+        std::vector<ipc::Message> Receive();
 
     // protected:
+        std::vector<ipc::Message> ResolvePackets(std::vector<ipc::Message> extra_packet);
+        std::vector<ipc::Message> ResolvePackets();
 
         heap::HeapManager GetHeapManager() const;
         void SetHeapManager(const heap::HeapManager& heap_manager);
