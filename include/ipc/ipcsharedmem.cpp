@@ -19,13 +19,13 @@ namespace ipc
         {   
             ipc::Message frag_msg = {0};
             memcpy(&frag_msg.header, &msg.header, sizeof(ipc::MessageHeader));
-            frag_msg.header.index = i * IPC_MAX_MSG_SIZE;
+            frag_msg.header.frag_index = i * IPC_MAX_MSG_SIZE;
             
-            frag_msg.header.data_size = std::min((DWORD)IPC_MAX_MSG_SIZE, msg.header.total_size - i * IPC_MAX_MSG_SIZE);
+            frag_msg.header.frag_data_size = std::min((DWORD)IPC_MAX_MSG_SIZE, msg.header.total_size - i * IPC_MAX_MSG_SIZE);
             
-            frag_msg.data.resize(frag_msg.header.data_size);
+            frag_msg.data.resize(frag_msg.header.frag_data_size);
 
-            memcpy(&frag_msg.data[0], &msg.data[i * IPC_MAX_MSG_SIZE], frag_msg.header.data_size);
+            memcpy(&frag_msg.data[0], &msg.data[i * IPC_MAX_MSG_SIZE], frag_msg.header.frag_data_size);
 
             flat_msg = frag_msg.Flat();
             
@@ -67,7 +67,7 @@ namespace ipc
         msg.data.resize(data.size());
         memcpy(&msg.data[0], data.data(), data.size());
 
-        msg.header.checksum = msg.ipc::Message::CalculateChecksum();
+        msg.header.total_checksum = msg.ipc::Message::CalculateChecksum();
         
         return IpcSharedMemory::Send(msg);
     }
@@ -103,10 +103,10 @@ namespace ipc
             msg_header_ptr = (MessageHeader *)((size_t)heap_header_ptr+sizeof(heap::HeapHeader));
             msg_header_data = shm_.Read(msg_header_ptr, sizeof(MessageHeader));
 
-            // Check if the recv_pid is the pid of the receiver
+            // Check if the recv_pid is the pid of the receiver, if not, check if that process is still alive and go to next chunk
             if (::getpid() != ((MessageHeader *)&msg_header_data[0])->recv_pid)
             {
-                // Check if the recv process is still active
+                // Check if the process is still active
                 if (process::Process(((MessageHeader *)&msg_header_data[0])->recv_pid).IsActive() == false)
                 {
                     free_queue.push_back(msg_header_ptr);
@@ -116,7 +116,7 @@ namespace ipc
 
             // Read the content of message
             data_ptr = (void *)((size_t)msg_header_ptr + sizeof(ipc::MessageHeader));
-            data = shm_.Read(data_ptr , msg_header_ptr->data_size);
+            data = shm_.Read(data_ptr , msg_header_ptr->frag_data_size);
 
             msg = {0};
             memcpy(&msg.header, ((MessageHeader *)&msg_header_data[0]), sizeof(ipc::MessageHeader));
@@ -151,7 +151,7 @@ namespace ipc
         ipc_mutex_.Unlock();
         // ulti::PrintDebug("Exit IPC lock");
 
-        return ResolvePackets(recv_packet);
+        return IpcSharedMemory::ResolvePackets(recv_packet);
     }
 
     std::vector<ipc::Message> IpcSharedMemory::ResolvePackets(std::vector<ipc::Message> extra_packet)
@@ -160,19 +160,18 @@ namespace ipc
         {
             packet_list_.push_back(packet);
         }
-        return ResolvePackets();
+        return IpcSharedMemory::ResolvePackets();
     }
 
     std::vector<ipc::Message> IpcSharedMemory::ResolvePackets()
     {
-        std::vector<ipc::Message> msg_list;
-
         for (auto& packet: packet_list_)
         {
             bool merged = false;
             for (int i = 0; i < packet_merge_list_.size(); i++)
             {
-                if (packet_merge_list_[i][0].header.checksum == packet.header.checksum)
+                if (packet_merge_list_[i][0].header.total_checksum == packet.header.total_checksum &&
+                    packet_merge_list_[i][0].header.send_pid == packet.header.send_pid)
                 {
                     packet_merge_list_[i].push_back(packet);
                     merged = true;
@@ -187,7 +186,13 @@ namespace ipc
         }
         packet_list_.clear();
 
-        std::vector<int> delete_index;
+        return IpcSharedMemory::MergePackets();
+    }
+
+    std::vector<ipc::Message> IpcSharedMemory::MergePackets()
+    {
+        std::vector<ipc::Message> msg_list;
+        std::vector<int> delete_index_vector;
         for (int i = 0; i < packet_merge_list_.size(); i++) 
         {
             DWORD total_size_recv = 0;
@@ -195,44 +200,49 @@ namespace ipc
 
             for (auto& packet: packet_merge_list_[i])
             {
-                total_size_recv += packet.header.data_size;
+                total_size_recv += packet.header.frag_data_size;
                 if (real_total_size != packet.header.total_size)
                 {
-                    delete_index.push_back(i);
+                    delete_index_vector.push_back(i);
                     total_size_recv = -1;
                     real_total_size = 0;
                     break;
                 }
             }
 
+            // If full message is received
             if (total_size_recv == real_total_size)
             {
                 ipc::Message full_msg = {0};
                 
                 memcpy(&full_msg.header, &packet_merge_list_[i][0].header, sizeof(ipc::MessageHeader));
-                full_msg.header.checksum = 0;
-                full_msg.header.data_size = real_total_size;
+                full_msg.header.total_checksum = 0;
+                full_msg.header.frag_data_size = real_total_size;
                 full_msg.header.total_size = real_total_size;
-                full_msg.header.index = 0;
+                full_msg.header.frag_index = 0;
 
                 full_msg.data.resize(real_total_size);
                 for (auto& packet: packet_merge_list_[i])
                 {
-                    memcpy(&full_msg.data[packet.header.index], &packet.data[0], packet.header.data_size);
+                    memcpy(&full_msg.data[packet.header.frag_index], &packet.data[0], packet.header.frag_data_size);
                 }
 
                 msg_list.push_back(full_msg);
 
-                delete_index.push_back(i);
+                delete_index_vector.push_back(i);
+            }
+            // If message is not fully received, check if the sender is active.
+            // If the sender is inactive, delete the whole packet_merge_list.
+            else if (process::Process(packet_merge_list_[0][0].header.send_pid).IsActive() == false)
+            {
+                delete_index_vector.push_back(i);
             }
         }
 
-        for (int i = delete_index.size() - 1; i >= 0; i--)
+        for (int i = delete_index_vector.size() - 1; i >= 0; i--)
         {
-            packet_merge_list_.erase(packet_merge_list_.begin() + delete_index[i]);
+            packet_merge_list_.erase(packet_merge_list_.begin() + delete_index_vector[i]);
         }
-
-        return msg_list;
     }
 
     heap::HeapManager IpcSharedMemory::GetHeapManager() const

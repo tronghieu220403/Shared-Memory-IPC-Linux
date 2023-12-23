@@ -8,7 +8,7 @@ namespace ipc
 {
         
     #define IPC_SHM_SIZE 0x10000
-    #define IPC_SHM_NAME "hieu_ipc_shmggg"
+    #define IPC_SHM_NAME "hieu_ipc_shm"
     #define IPC_MUTEX_NAME "hieu_ipc_mutex"
 
     #define IPC_MAX_MSG_SIZE 0x1000
@@ -17,10 +17,10 @@ namespace ipc
     {
         DWORD recv_pid;
         DWORD send_pid;
-        DWORD data_size;
         DWORD total_size;
-        DWORD index;
-        DWORD checksum;
+        DWORD total_checksum;
+        DWORD frag_data_size;
+        DWORD frag_index;
     };
 
     struct Message

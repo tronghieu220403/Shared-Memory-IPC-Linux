@@ -33,6 +33,7 @@ namespace ipc
     // protected:
         std::vector<ipc::Message> ResolvePackets(std::vector<ipc::Message> extra_packet);
         std::vector<ipc::Message> ResolvePackets();
+        std::vector<ipc::Message> MergePackets();
 
         heap::HeapManager GetHeapManager() const;
         void SetHeapManager(const heap::HeapManager& heap_manager);
