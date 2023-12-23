@@ -13,6 +13,7 @@ namespace heap
     };   
 
     #define IN_USE 0x1
+    #define NOT_IN_USE 0x0
 }
 
 #endif

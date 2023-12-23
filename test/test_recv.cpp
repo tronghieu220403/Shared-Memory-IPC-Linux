@@ -10,6 +10,7 @@ ipc::IpcSharedMemory com;
 
 void DumpHeapMemory()
 {
+    /*
     ofstream MyFile("dump.txt");
     UCHAR* ptr = (UCHAR *)com.GetHeapManager().GetStartPointer();
     for (int i = 0; i < 0x200; i+=8)
@@ -22,13 +23,14 @@ void DumpHeapMemory()
         MyFile << endl;
     }
     MyFile.close();
+    */
 }
 
 void RecvThread()
 {
     while(true)
     {
-        DumpHeapMemory();
+        // DumpHeapMemory();
         for (auto u: com.Receive())
         {
             cout << "Message from PID " << u.header.send_pid << ": ";

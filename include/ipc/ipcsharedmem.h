@@ -30,10 +30,10 @@ namespace ipc
         bool Send(DWORD receiver_pid, const std::vector<UCHAR>& data);
         std::vector<ipc::Message> Receive();
 
-    // protected:
-        std::vector<ipc::Message> ResolvePackets(std::vector<ipc::Message> extra_packet);
-        std::vector<ipc::Message> ResolvePackets();
-        std::vector<ipc::Message> MergePackets();
+    protected:
+        std::vector<ipc::Message> ResolveFragmentMessages(std::vector<ipc::Message> extra_packet);
+        std::vector<ipc::Message> ResolveFragmentMessages();
+        std::vector<ipc::Message> MergeFragmentMessages();
 
         heap::HeapManager GetHeapManager() const;
         void SetHeapManager(const heap::HeapManager& heap_manager);

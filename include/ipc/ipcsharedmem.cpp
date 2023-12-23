@@ -151,19 +151,19 @@ namespace ipc
         ipc_mutex_.Unlock();
         // ulti::PrintDebug("Exit IPC lock");
 
-        return IpcSharedMemory::ResolvePackets(recv_packet);
+        return IpcSharedMemory::ResolveFragmentMessages(recv_packet);
     }
 
-    std::vector<ipc::Message> IpcSharedMemory::ResolvePackets(std::vector<ipc::Message> extra_packet)
+    std::vector<ipc::Message> IpcSharedMemory::ResolveFragmentMessages(std::vector<ipc::Message> extra_packet)
     {
         for (auto& packet: extra_packet)
         {
             packet_list_.push_back(packet);
         }
-        return IpcSharedMemory::ResolvePackets();
+        return IpcSharedMemory::ResolveFragmentMessages();
     }
 
-    std::vector<ipc::Message> IpcSharedMemory::ResolvePackets()
+    std::vector<ipc::Message> IpcSharedMemory::ResolveFragmentMessages()
     {
         for (auto& packet: packet_list_)
         {
@@ -186,10 +186,10 @@ namespace ipc
         }
         packet_list_.clear();
 
-        return IpcSharedMemory::MergePackets();
+        return IpcSharedMemory::MergeFragmentMessages();
     }
 
-    std::vector<ipc::Message> IpcSharedMemory::MergePackets()
+    std::vector<ipc::Message> IpcSharedMemory::MergeFragmentMessages()
     {
         std::vector<ipc::Message> msg_list;
         std::vector<int> delete_index_vector;
