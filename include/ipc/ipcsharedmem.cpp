@@ -67,7 +67,7 @@ namespace ipc
         msg.data.resize(data.size());
         memcpy(&msg.data[0], data.data(), data.size());
 
-        msg.header.total_checksum = msg.ipc::Message::CalculateChecksum();
+        msg.header.id = msg.ipc::Message::CalculateChecksum();
         
         return IpcSharedMemory::Send(msg);
     }
@@ -77,8 +77,8 @@ namespace ipc
         std::vector<ipc::Message> recv_packet;
         ipc::Message msg;
 
-        heap::HeapHeader* heap_header_ptr = (heap::HeapHeader*)heap_manager_.GetStartPointer();
-        std::vector<UCHAR> heap_header_data = shm_.Read(heap_header_ptr, sizeof(heap::HeapHeader));
+        heap::ChunkHeader* heap_header_ptr = (heap::ChunkHeader*)heap_manager_.GetStartPointer();
+        std::vector<UCHAR> heap_header_data = shm_.Read(heap_header_ptr, sizeof(heap::ChunkHeader));
 
         ipc::MessageHeader* msg_header_ptr;
         std::vector<UCHAR> msg_header_data;
@@ -94,13 +94,13 @@ namespace ipc
         while(true)
         {
             // Check if the chunk is in use or not
-            if ((((heap::HeapHeader*)&heap_header_data[0])->flag & IN_USE)==0)
+            if ((((heap::ChunkHeader*)&heap_header_data[0])->flag & IN_USE)==0)
             {
                 goto NEXT_LABEL;
             }
 
             // Read the content of MessageHeader
-            msg_header_ptr = (MessageHeader *)((size_t)heap_header_ptr+sizeof(heap::HeapHeader));
+            msg_header_ptr = (MessageHeader *)((size_t)heap_header_ptr+sizeof(heap::ChunkHeader));
             msg_header_data = shm_.Read(msg_header_ptr, sizeof(MessageHeader));
 
             // Check if the recv_pid is the pid of the receiver, if not, check if that process is still alive and go to next chunk
@@ -129,18 +129,18 @@ namespace ipc
             
             NEXT_LABEL:
 
-            if (((heap::HeapHeader*)&heap_header_data[0])->next_distance == 0)
+            if (((heap::ChunkHeader*)&heap_header_data[0])->next_distance == 0)
             {
                 break;
             }
 
             // Get the pointer of next heap header
-            heap_header_ptr = (heap::HeapHeader*)
+            heap_header_ptr = (heap::ChunkHeader*)
                                 ((size_t)heap_header_ptr + 
-                                    ((heap::HeapHeader*)&heap_header_data[0])->next_distance);
+                                    ((heap::ChunkHeader*)&heap_header_data[0])->next_distance);
 
             // Read the content of next heap header
-            heap_header_data = shm_.Read(heap_header_ptr, sizeof(heap::HeapHeader));
+            heap_header_data = shm_.Read(heap_header_ptr, sizeof(heap::ChunkHeader));
         }
 
         for (auto value: free_queue)
@@ -170,7 +170,7 @@ namespace ipc
             bool merged = false;
             for (int i = 0; i < packet_merge_list_.size(); i++)
             {
-                if (packet_merge_list_[i][0].header.total_checksum == packet.header.total_checksum &&
+                if (packet_merge_list_[i][0].header.id == packet.header.id &&
                     packet_merge_list_[i][0].header.send_pid == packet.header.send_pid)
                 {
                     packet_merge_list_[i].push_back(packet);
@@ -216,7 +216,7 @@ namespace ipc
                 ipc::Message full_msg = {0};
                 
                 memcpy(&full_msg.header, &packet_merge_list_[i][0].header, sizeof(ipc::MessageHeader));
-                full_msg.header.total_checksum = 0;
+                full_msg.header.id = 0;
                 full_msg.header.frag_data_size = real_total_size;
                 full_msg.header.total_size = real_total_size;
                 full_msg.header.frag_index = 0;

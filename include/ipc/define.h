@@ -15,10 +15,10 @@ namespace ipc
 
     struct MessageHeader
     {
+        DWORD id;
         DWORD recv_pid;
         DWORD send_pid;
         DWORD total_size;
-        DWORD total_checksum;
         DWORD frag_data_size;
         DWORD frag_index;
     };

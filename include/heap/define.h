@@ -5,7 +5,7 @@
 
 namespace heap
 {
-    struct HeapHeader{
+    struct ChunkHeader{
         DWORD prev_distance;
         DWORD next_distance;
         DWORD flag;
