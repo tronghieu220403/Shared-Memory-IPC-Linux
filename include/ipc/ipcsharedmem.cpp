@@ -243,6 +243,8 @@ namespace ipc
         {
             packet_merge_list_.erase(packet_merge_list_.begin() + delete_index_vector[i]);
         }
+
+        return msg_list;
     }
 
     heap::HeapManager IpcSharedMemory::GetHeapManager() const
