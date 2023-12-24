@@ -15,6 +15,11 @@ namespace ipc
         bool ret = false;
         std::vector<UCHAR> flat_msg;
 
+        if (process::Process(msg.header.recv_pid).IsActive() == false)
+        {
+            return false;
+        }
+
         for (DWORD i = 0; i * IPC_MAX_MSG_SIZE < msg.header.total_size; i++)
         {   
             ipc::Message frag_msg = {0};
