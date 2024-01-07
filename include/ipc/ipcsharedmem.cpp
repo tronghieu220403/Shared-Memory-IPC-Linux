@@ -79,7 +79,6 @@ namespace ipc
 
     std::vector<ipc::Message> IpcSharedMemory::Receive()
     {
-        std::vector<ipc::Message> recv_packet;
         ipc::Message msg;
 
         heap::ChunkHeader* heap_header_ptr = (heap::ChunkHeader*)heap_manager_.GetStartPointer();
@@ -127,7 +126,7 @@ namespace ipc
             memcpy(&msg.header, ((MessageHeader *)&msg_header_data[0]), sizeof(ipc::MessageHeader));
             msg.data = data;
 
-            recv_packet.push_back(msg);
+            recv_msg_list_.push_back(msg);
 
             // Recveived, push to delete queue
             free_queue.push_back(msg_header_ptr);
@@ -156,21 +155,12 @@ namespace ipc
         ipc_mutex_.Unlock();
         // ulti::PrintDebug("Exit IPC lock");
 
-        return IpcSharedMemory::ResolveFragmentMessages(recv_packet);
-    }
-
-    std::vector<ipc::Message> IpcSharedMemory::ResolveFragmentMessages(std::vector<ipc::Message> extra_packet)
-    {
-        for (auto& packet: extra_packet)
-        {
-            packet_list_.push_back(packet);
-        }
         return IpcSharedMemory::ResolveFragmentMessages();
     }
 
     std::vector<ipc::Message> IpcSharedMemory::ResolveFragmentMessages()
     {
-        for (auto& packet: packet_list_)
+        for (auto& packet: recv_msg_list_)
         {
             bool merged = false;
             for (int i = 0; i < packet_merge_list_.size(); i++)
@@ -189,7 +179,7 @@ namespace ipc
                 packet_merge_list_.push_back(packet_merge_vector);
             }
         }
-        packet_list_.clear();
+        recv_msg_list_.clear();
 
         return IpcSharedMemory::MergeFragmentMessages();
     }

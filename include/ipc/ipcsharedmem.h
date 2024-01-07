@@ -16,7 +16,7 @@ namespace ipc
 	class IpcSharedMemory 
     {
 	private:
-        std::vector<ipc::Message> packet_list_;
+        std::vector<ipc::Message> recv_msg_list_;
         std::vector< std::vector<ipc::Message> > packet_merge_list_;
         memory::SharedMemory shm_;
         heap::HeapManager heap_manager_;
@@ -31,7 +31,6 @@ namespace ipc
         std::vector<ipc::Message> Receive();
 
     protected:
-        std::vector<ipc::Message> ResolveFragmentMessages(std::vector<ipc::Message> extra_packet);
         std::vector<ipc::Message> ResolveFragmentMessages();
         std::vector<ipc::Message> MergeFragmentMessages();
 
